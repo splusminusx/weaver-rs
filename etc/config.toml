@@ -1,0 +1,14 @@
+ttl-seconds = 34560000
+data-path = "/tmp/data/"
+
+rpc-port = 5000
+health-check-port = 8085
+
+queue-size = 2048
+worker-count = 4
+
+[consumer]
+brokers = ["localhost:9092"]
+topic = "test"
+group-id = "weaver-2"
+fetch-max-wait-time-millis = 1000

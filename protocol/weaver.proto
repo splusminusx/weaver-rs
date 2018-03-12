@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package protocol.weaver;
+
+service Weaver {
+    rpc GetItemsStats(StatsRequest) returns (StatsResponse);
+}
+
+message StatsRequest {
+    int64 item_id = 1;
+}
+
+message Item {
+    enum ItemType {
+        SINGLE = 0;
+        AGGREGATED = 1;
+    }
+
+    int64       item_id     = 1;
+    string      description = 2;
+
+    int64       counter     = 3;
+    double      percent     = 4;
+
+    ItemType    item_type   = 5;
+}
+
+message StatsResponse {
+    int32           total = 1;
+    repeated Item   items = 2;
+}

@@ -1,0 +1,62 @@
+[package]
+name = "weaver"
+version = "0.1.0"
+authors = ["stx"]
+build = "build.rs"
+
+[lib]
+name = "weaver"
+
+[[bin]]
+name = "producer"
+path = "src/bin/producer.rs"
+
+[[bin]]
+name = "client"
+path = "src/bin/client.rs"
+
+[[bin]]
+name = "server"
+path = "src/bin/server.rs"
+
+[dependencies]
+clippy = {version = "0.0.177", optional = true}
+prost = "0.3.0"
+prost-types = "0.3.0"
+prost-derive = "0.3.0"
+bytes = "0.4.5"
+kafka = "0.7"
+log = "0.4.1"
+env_logger = "0.5.0-rc.1"
+serde = "1.0.27"
+serde_derive = "1.0.27"
+toml = "0.4.5"
+uuid = { version = "0.5.1", features = ["serde", "v4"] }
+tempdir = "0.3.5"
+clap = "2.29.0"
+crossbeam = "0.3.2"
+crossbeam-channel = "0.1.2"
+crossbeam-utils = "0.2.1"
+futures = "0.1"
+http = "0.1"
+tokio-core = "0.1"
+tower = { git = "https://github.com/tower-rs/tower" }
+tower-h2 = { git = "https://github.com/tower-rs/tower-h2" }
+tower-http = { git = "https://github.com/tower-rs/tower-http" }
+tower-grpc = { git = "https://github.com/tower-rs/tower-grpc" }
+rocksdb = { git = "https://github.com/pingcap/rust-rocksdb.git" }
+prometheus = "0.3"
+byteorder = "1.2.1"
+error-chain = "0.11.0"
+
+[build-dependencies]
+prost-build = "0.3.0"
+tower-grpc-build = { git = "https://github.com/tower-rs/tower-grpc" }
+
+[features]
+default = []
+dev = ["clippy"]
+
+[patch.crates-io]
+libz-sys = { git = "https://github.com/busyjay/libz-sys.git", branch = "static-link" }
+bzip2-sys = { git = "https://github.com/alexcrichton/bzip2-rs.git" }
