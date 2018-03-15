@@ -12,9 +12,14 @@ extern crate env_logger;
 #[macro_use]
 extern crate error_chain;
 extern crate futures;
+extern crate hyper;
 extern crate kafka;
 #[macro_use]
+extern crate lazy_static;
+#[macro_use]
 extern crate log;
+#[macro_use]
+extern crate prometheus;
 extern crate prost;
 #[macro_use]
 extern crate prost_derive;
@@ -32,6 +37,7 @@ extern crate uuid;
 pub mod protocol {
     include!(concat!(env!("OUT_DIR"), "/protocol.weaver.rs"));
 }
+pub mod metrics;
 pub mod config;
 pub mod weaver;
 pub mod consumer;

@@ -4,6 +4,7 @@ use crossbeam_channel::{Receiver, Sender};
 use crossbeam_channel::{bounded, unbounded};
 use error::Result;
 use kafka::consumer::{Consumer, FetchOffset, GroupOffsetStorage, MessageSets};
+use metrics;
 use prost::Message;
 use protocol;
 use rocksdb::{Writable, DB};
@@ -83,6 +84,7 @@ impl Runnable for KafkaItemConsumer {
                 let mss = input.recv().unwrap();
                 for ms in mss.iter() {
                     for m in ms.messages() {
+                        metrics::CONSUME_COUNTER.inc();
                         let item = protocol::Item::decode(&mut Cursor::new(m.value)).unwrap();
                         info!("thread {} {:?}", i, item);
 

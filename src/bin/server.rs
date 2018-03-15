@@ -1,8 +1,10 @@
 extern crate clap;
 extern crate env_logger;
 extern crate futures;
+extern crate hyper;
 #[macro_use]
 extern crate log;
+extern crate prometheus;
 extern crate rocksdb;
 extern crate tokio_core;
 extern crate toml;
@@ -12,6 +14,7 @@ extern crate weaver;
 
 use clap::{App, Arg};
 use futures::{Future, Stream};
+use hyper::server::Http;
 use rocksdb::DB;
 use std::fs::File;
 use std::io::Read;
@@ -26,6 +29,7 @@ use tower_h2::Server;
 use weaver::config::ServerConfig;
 use weaver::consumer::{KafkaItemConsumer, Runnable};
 use weaver::error::*;
+use weaver::metrics::MetricService;
 use weaver::protocol::server;
 use weaver::weaver::Weaver;
 
@@ -75,31 +79,47 @@ pub fn main() {
 
     let db = Arc::new(DB::open_default(&config.data_path).unwrap());
 
-    let mut core = Core::new().unwrap();
-    let reactor = core.handle();
-
     let weaver = server::WeaverServer::new(Weaver { db: db.clone() });
     let consumer = KafkaItemConsumer::new(config.queue_size, db.clone(), config.consumer.clone());
-
     let worker_count = config.worker_count;
-    thread::spawn(move || consumer.run(worker_count));
 
-    let h2 = Server::new(weaver, Default::default(), reactor.clone());
+    let consumer_thread = thread::spawn(move || consumer.run(worker_count));
 
-    let addr = SocketAddrV4::new("0.0.0.0".parse().unwrap(), config.rpc_port);
-    let bind = TcpListener::bind(&addr.into(), &reactor).expect("bind");
+    let rpc_port = config.rpc_port;
+    let grpc_thread = thread::spawn(move || {
+        let mut core = Core::new().unwrap();
+        let reactor = core.handle();
 
-    let serve = bind.incoming()
-        .fold((h2, reactor), |(h2, reactor), (sock, _)| {
-            if let Err(e) = sock.set_nodelay(true) {
-                return Err(e);
-            }
+        let h2 = Server::new(weaver, Default::default(), reactor.clone());
 
-            let serve = h2.serve(sock);
-            reactor.spawn(serve.map_err(|e| error!("h2 error: {:?}", e)));
+        let addr = SocketAddrV4::new("0.0.0.0".parse().unwrap(), rpc_port);
+        let bind = TcpListener::bind(&addr.into(), &reactor).expect("bind");
 
-            Ok((h2, reactor))
-        });
+        let serve = bind.incoming()
+            .fold((h2, reactor), |(h2, reactor), (sock, _)| {
+                if let Err(e) = sock.set_nodelay(true) {
+                    return Err(e);
+                }
 
-    core.run(serve).unwrap();
+                let serve = h2.serve(sock);
+                reactor.spawn(serve.map_err(|e| error!("h2 error: {:?}", e)));
+
+                Ok((h2, reactor))
+            });
+
+        core.run(serve).unwrap();
+    });
+
+    let health_check_port = config.health_check_port;
+    let metrics_thread = thread::spawn(move || {
+        let addr = SocketAddrV4::new("0.0.0.0".parse().unwrap(), health_check_port);
+        let server = Http::new()
+            .bind(&addr.into(), || Ok(MetricService::new()))
+            .unwrap();
+        server.run().unwrap();
+    });
+
+    for thread in vec![consumer_thread, grpc_thread, metrics_thread] {
+        thread.join().unwrap();
+    }
 }
